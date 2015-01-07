@@ -11,6 +11,8 @@
 
 @interface AW_StatusViewController : UIViewController <UITextFieldDelegate, UITableViewDataSource>
 
+@property (nonatomic, strong) NSArray *connectedDevices; // This is an array because the list of devices to choose from will be a set so there will be no duplicates
+
 @property (weak, nonatomic) IBOutlet UITextField *nameTextField;
 @property (weak, nonatomic) IBOutlet UITextField *statusTextField;
 @property (weak, nonatomic) IBOutlet UITableView *tableView;

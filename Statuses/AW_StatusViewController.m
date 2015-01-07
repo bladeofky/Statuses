@@ -7,16 +7,26 @@
 //
 
 #import "AW_StatusViewController.h"
+#import "AW_ConnectViewController.h"
 
 @interface AW_StatusViewController ()
 
-@property (nonatomic, strong) NSMutableArray *connectedDevices; // This is an array because the list of devices to
-                                                                // choose from will be a set so there will be no duplicates
+
 
 @end
 
 @implementation AW_StatusViewController
+#pragma mark - Accessors
+-(NSArray *)connectedDevices
+{
+    if (!_connectedDevices) {
+        _connectedDevices = @[];
+    }
+    
+    return _connectedDevices;
+}
 
+#pragma mark - View Lifecycle
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -24,9 +34,11 @@
     // Navigation bar stuff
     self.navigationItem.title = @"Statuses";
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(didPressAddButton)];
-    
-    // Temporary setup to test tableview
-    self.connectedDevices = @[@[@"name1", @"status1"], @[@"name2", @"status2"]];
+}
+
+-(void)viewWillAppear:(BOOL)animated
+{
+    [self.tableView reloadData];
 }
 
 - (void)didReceiveMemoryWarning
@@ -40,6 +52,12 @@
 {
     // Instantiate modal view controller
     // Present modal view controller
+    AW_ConnectViewController *connectViewController = [[AW_ConnectViewController alloc]init];
+    connectViewController.connectedPeripherals = [self.connectedDevices mutableCopy];
+    connectViewController.statusVC = self;
+    UINavigationController *dummyNavigationController = [[UINavigationController alloc]initWithRootViewController:connectViewController];
+    
+    [self presentViewController:dummyNavigationController animated:YES completion:nil];
 }
 
 #pragma mark - UITableViewDataSource
@@ -57,11 +75,10 @@
 {
     UITableViewCell *cell = [[UITableViewCell alloc]initWithStyle:UITableViewCellStyleValue2 reuseIdentifier:@"UITableViewCell"];
     
-    // Temporary setup to test tableview
-    NSArray *cellContents = self.connectedDevices[indexPath.row];
+    CBPeripheral *peripheral = self.connectedDevices[indexPath.row];
     
-    cell.textLabel.text = cellContents[0];
-    cell.detailTextLabel.text = cellContents[1];
+    cell.textLabel.text = peripheral.name;
+    cell.detailTextLabel.text = [peripheral.identifier UUIDString];
     
     return cell;
 }

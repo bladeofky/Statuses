@@ -7,11 +7,16 @@
 //
 
 #import <UIKit/UIKit.h>
+#import <CoreBluetooth/CoreBluetooth.h>
 
-@interface AW_ConnectViewController : UIViewController
+@class AW_StatusViewController;
+
+@interface AW_ConnectViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, CBCentralManagerDelegate, CBPeripheralManagerDelegate>
+
+@property (nonatomic, strong) NSMutableArray *connectedPeripherals; // This needs to be public so that AW_StatusViewController can assgn connected devices to it
+@property (nonatomic, weak) AW_StatusViewController *statusVC;
 
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
 
-@property (strong, nonatomic) NSMutableArray *connectedPeripherals;
 
 @end
