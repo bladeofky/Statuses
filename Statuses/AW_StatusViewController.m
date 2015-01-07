@@ -76,9 +76,23 @@
     UITableViewCell *cell = [[UITableViewCell alloc]initWithStyle:UITableViewCellStyleValue2 reuseIdentifier:@"UITableViewCell"];
     
     CBPeripheral *peripheral = self.connectedDevices[indexPath.row];
+    CBService *service = peripheral.services[0];
+
+    CBCharacteristic *userNameCharacteristic = service.characteristics[0];
+    CBCharacteristic *statusCharacteristic = service.characteristics[1];
     
-    cell.textLabel.text = peripheral.name;
-    cell.detailTextLabel.text = [peripheral.identifier UUIDString];
+    // Retrieve values for characteristics
+    [peripheral readValueForCharacteristic:userNameCharacteristic];
+    [peripheral readValueForCharacteristic:statusCharacteristic];
+    
+    NSData *userNameData = userNameCharacteristic.value;
+    NSData *statusData = statusCharacteristic.value;
+    
+    NSString *userName = [[NSString alloc]initWithData:userNameData encoding:NSUTF8StringEncoding];
+    NSString *status = [[NSString alloc]initWithData:statusData encoding:NSUTF8StringEncoding];
+    
+    cell.textLabel.text = userName;
+    cell.detailTextLabel.text = status;
     
     return cell;
 }

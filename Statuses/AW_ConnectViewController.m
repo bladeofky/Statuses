@@ -14,6 +14,8 @@
 @property (nonatomic, strong) CBCentralManager *centralManager;
 @property (nonatomic, strong) CBPeripheralManager *peripheralManager;
 @property (nonatomic, strong) CBUUID *statusServiceUUID;
+@property (nonatomic, strong) CBMutableCharacteristic *nameCharacteristic;
+@property (nonatomic, strong) CBMutableCharacteristic *statusCharacteristic;
 
 @property (nonatomic, strong) NSMutableOrderedSet *discoveredPeripherals;
 
@@ -157,6 +159,9 @@
 {
     NSLog(@"Discovered peripheral: %@", peripheral.name);
     
+    // Discoer peripheral's services and characteristics
+    [peripheral discoverServices:@[self.statusServiceUUID]];
+    
     // Add peripheral to table data
     [self.discoveredPeripherals addObject:peripheral];
     
@@ -187,17 +192,17 @@
         CBUUID *nameCharacteristicUUID = [CBUUID UUIDWithString:nameCharacteristicUUIDString];
         CBUUID *statusCharacteristicUUID = [CBUUID UUIDWithString:statusCharacteristicUUIDString];
         
-        CBMutableCharacteristic *nameCharacteristic = [[CBMutableCharacteristic alloc]initWithType:nameCharacteristicUUID
+        self.nameCharacteristic = [[CBMutableCharacteristic alloc]initWithType:nameCharacteristicUUID
                                                                                         properties:CBCharacteristicPropertyRead
                                                                                              value:nil
                                                                                        permissions:CBAttributePermissionsReadable];
-        CBMutableCharacteristic *statusCharacteristic = [[CBMutableCharacteristic alloc]initWithType:statusCharacteristicUUID
+        self.statusCharacteristic = [[CBMutableCharacteristic alloc]initWithType:statusCharacteristicUUID
                                                                                           properties:CBCharacteristicPropertyRead
                                                                                                value:nil
                                                                                          permissions:CBAttributePermissionsReadable];
         
         CBMutableService *statusService = [[CBMutableService alloc]initWithType:self.statusServiceUUID primary:YES];
-        statusService.characteristics = @[nameCharacteristic, statusCharacteristic];
+        statusService.characteristics = @[self.nameCharacteristic, self.statusCharacteristic];
         [self.peripheralManager addService:statusService];
         
         // Start advertising
@@ -222,6 +227,32 @@
     }
     else {
         NSLog(@"Began advertising services");
+    }
+}
+
+#pragma mark - CBPeripheralDelegate
+-(void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error
+{
+    if (error) {
+        NSLog(@"Error discovering services: %@", [error localizedDescription]);
+    }
+    else {
+        // Discover the characteristics for each service
+        for (CBService *service in peripheral.services) {
+            [peripheral discoverCharacteristics:nil forService:service];
+        }
+    }
+}
+
+-(void)peripheral:(CBPeripheral *)peripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error
+{
+    if (error) {
+        NSLog(@"Error discovering characteristics: %@", [error localizedDescription]);
+    }
+    else {
+        for (CBService *service in peripheral.services) {
+            [peripheral discoverCharacteristics:nil forService:service];
+        }
     }
 }
 
