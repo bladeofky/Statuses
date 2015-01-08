@@ -11,7 +11,7 @@
 
 @class AW_StatusViewController;
 
-@interface AW_ConnectViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, CBCentralManagerDelegate, CBPeripheralManagerDelegate, CBPeripheralDelegate>
+@interface AW_ConnectViewController : UIViewController <UITableViewDataSource, UITableViewDelegate, CBCentralManagerDelegate, CBPeripheralManagerDelegate>
 
 @property (nonatomic, strong) NSMutableArray *connectedPeripherals; // This needs to be public so that AW_StatusViewController can assgn connected devices to it
 @property (nonatomic, weak) AW_StatusViewController *statusVC;

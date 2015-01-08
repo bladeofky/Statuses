@@ -55,6 +55,7 @@
 #pragma mark - View Lifecycles
 
 - (void)viewDidLoad {
+    
     [super viewDidLoad];
     // Do any additional setup after loading the view from its nib.
     
@@ -71,9 +72,11 @@
     
     // Instantiate Peripheral Manager
     self.peripheralManager = [[CBPeripheralManager alloc]initWithDelegate:self queue:nil options:nil];
+    
 }
 
 - (void)didReceiveMemoryWarning {
+    
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
 }
@@ -101,6 +104,12 @@
     
     // Copy connected peripherals back to Status view controller
     self.statusVC.connectedDevices = [self.connectedPeripherals copy];
+    self.statusVC.peripheralManager = self.peripheralManager;
+    
+    // Pass references
+    self.statusVC.statusServiceUUID = self.statusServiceUUID;
+    self.statusVC.nameCharacteristic = self.nameCharacteristic;
+    self.statusVC.statusCharacteristic = self.statusCharacteristic;
     
     // Dismiss this view controller
     [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
@@ -132,6 +141,7 @@
     
     cell.textLabel.text = peripheral.name;
     
+    
     return cell;
 }
 
@@ -159,9 +169,6 @@
 {
     NSLog(@"Discovered peripheral: %@", peripheral.name);
     
-    // Discoer peripheral's services and characteristics
-    [peripheral discoverServices:@[self.statusServiceUUID]];
-    
     // Add peripheral to table data
     [self.discoveredPeripherals addObject:peripheral];
     
@@ -172,9 +179,21 @@
 -(void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral
 {
     NSLog(@"Connected to peripheral: %@", peripheral.name);
+    peripheral.delegate = self.statusVC;
     [self.connectedPeripherals addObject:peripheral];
     
+#warning TODO: Why does this get called continuously?
+    // Discover peripheral's services and characteristics
+    [peripheral discoverServices:@[self.statusServiceUUID]];
+
     // Update table view (for checkmark accessory)
+    [self.tableView reloadData];
+}
+
+-(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
+{
+#warning TODO: Why do I disconnect after a few seconds?
+    NSLog(@"Disconnected from peripheral: %@", peripheral.name);
     [self.tableView reloadData];
 }
 
@@ -230,31 +249,7 @@
     }
 }
 
-#pragma mark - CBPeripheralDelegate
--(void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error
-{
-    if (error) {
-        NSLog(@"Error discovering services: %@", [error localizedDescription]);
-    }
-    else {
-        // Discover the characteristics for each service
-        for (CBService *service in peripheral.services) {
-            [peripheral discoverCharacteristics:nil forService:service];
-        }
-    }
-}
 
--(void)peripheral:(CBPeripheral *)peripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error
-{
-    if (error) {
-        NSLog(@"Error discovering characteristics: %@", [error localizedDescription]);
-    }
-    else {
-        for (CBService *service in peripheral.services) {
-            [peripheral discoverCharacteristics:nil forService:service];
-        }
-    }
-}
 
 #pragma mark - Helper methods
 - (NSString *)stringForCentralManagerState: (CBCentralManagerState)state
