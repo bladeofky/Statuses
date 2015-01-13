@@ -14,8 +14,7 @@
 @property (nonatomic, strong) CBPeripheralManager *peripheralManager;
 @property (nonatomic, strong) CBCentralManager *centralManager;
 
-@property (nonatomic, strong) CBMutableCharacteristic *nameCharacteristic;
-@property (nonatomic, strong) CBMutableCharacteristic *statusCharacteristic;
+
 
 @end
 
@@ -87,6 +86,13 @@
 
 -(void)viewWillAppear:(BOOL)animated
 {
+    // Update characteristics
+    NSData *nameData = [self.nameTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *statusData = [self.statusTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+    
+    [self.peripheralManager updateValue:nameData forCharacteristic:self.nameCharacteristic onSubscribedCentrals:nil];
+    [self.peripheralManager updateValue:statusData forCharacteristic:self.statusCharacteristic onSubscribedCentrals:nil];
+    
     // Get values for all connected peripherals
     for (CBPeripheral *peripheral in self.connectedDevices) {
         for (CBService *service in peripheral.services) {
@@ -162,22 +168,11 @@
     [textField resignFirstResponder];
     
     // Update characteristics
-    NSData *data = [textField.text dataUsingEncoding:NSUTF8StringEncoding];
-    BOOL isUpdateSuccessful;
+    NSData *nameData = [self.nameTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+    [self.peripheralManager updateValue:nameData forCharacteristic:self.nameCharacteristic onSubscribedCentrals:nil];
     
-    if (textField == self.nameTextField) {
-        isUpdateSuccessful = [self.peripheralManager updateValue:data forCharacteristic:self.nameCharacteristic onSubscribedCentrals:nil];
-    }
-    else if (textField == self.statusTextField) {
-        isUpdateSuccessful = [self.peripheralManager updateValue:data forCharacteristic:self.statusCharacteristic onSubscribedCentrals:nil];
-    }
-    else {
-        // Intentionally left blank
-    }
-    
-    if (!isUpdateSuccessful) {
-        NSLog(@"Update was not successful");
-    }
+    NSData *statusData = [self.statusTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+    [self.peripheralManager updateValue:statusData forCharacteristic:self.statusCharacteristic onSubscribedCentrals:nil];
     
     return YES;
 }
@@ -191,6 +186,15 @@
     if (central.state == CBCentralManagerStatePoweredOn) {
         self.isReadyToScan = YES;
     }
+}
+
+-(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
+{
+    NSMutableArray *temp = [self.connectedDevices mutableCopy];
+    [temp removeObject:peripheral];
+    self.connectedDevices = [temp copy];
+    
+    [self.tableView reloadData];
 }
 
 
@@ -219,6 +223,31 @@
         self.isReadyToAdvertise = YES;
     }
 }
+
+-(void)peripheralManagerIsReadyToUpdateSubscribers:(CBPeripheralManager *)peripheral
+{
+    // Retry sending status data in case underlying queue is full when we first attempt to send it.
+    NSData *statusData = [self.statusTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+    [self.peripheralManager updateValue:statusData forCharacteristic:self.statusCharacteristic onSubscribedCentrals:nil];
+}
+
+//-(void)peripheralManager:(CBPeripheralManager *)peripheral didReceiveReadRequest:(CBATTRequest *)request
+//{
+//    CBCharacteristic *characteristic;
+//    
+//    if ([request.characteristic.UUID isEqual:self.nameCharacteristic.UUID]) {
+//        characteristic = self.nameCharacteristic;
+//    }
+//    else if ([request.characteristic.UUID isEqual:self.statusCharacteristic.UUID]) {
+//        characteristic = self.statusCharacteristic;
+//    }
+//    else {
+//        // Left blank
+//    }
+//    
+//    request.value = characteristic.value;
+//    [peripheral respondToRequest:request withResult:CBATTErrorSuccess];
+//}
 
 #pragma mark - CBPeripheralDelegate
 -(void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error

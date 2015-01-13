@@ -138,6 +138,16 @@
 }
 
 #pragma mark - CBCentralManagerDelegate
+-(void)centralManagerDidUpdateState:(CBCentralManager *)central
+{
+    // Log state
+    NSLog(@"Central Manager state update to: %@", [self stringForCentralManagerState:central.state]);
+    
+    if (central.state == CBCentralManagerStatePoweredOn) {
+        self.statusVC.isReadyToScan = YES;
+    }
+}
+
 -(void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber *)RSSI
 {
     NSLog(@"Discovered peripheral: %@", peripheral.name);
@@ -161,6 +171,7 @@
 
     // Update table view (for checkmark accessory)
     [self.tableView reloadData];
+    
 }
 
 -(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
@@ -170,6 +181,11 @@
 }
 
 #pragma mark - CBPeripheralManagerDelegate
+-(void)peripheralManagerDidUpdateState:(CBPeripheralManager *)peripheral
+{
+    // Log state
+    NSLog(@"Peripheral Manager state update to: %@", [self stringForPeripheralManagerState:peripheral.state]);
+}
 
 -(void)peripheralManagerDidStartAdvertising:(CBPeripheralManager *)peripheral error:(NSError *)error
 {
@@ -180,6 +196,29 @@
         NSLog(@"Began advertising services");
     }
 }
+
+//-(void)peripheralManager:(CBPeripheralManager *)peripheral didReceiveReadRequest:(CBATTRequest *)request
+//{
+//    CBCharacteristic *characteristic;
+//    NSData *data;
+//    
+//    if ([request.characteristic.UUID isEqual:self.statusVC.nameCharacteristic.UUID]) {
+//        characteristic = self.statusVC.nameCharacteristic;
+//        data = [self.statusVC.nameTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+//        
+//    }
+//    else if ([request.characteristic.UUID isEqual:self.statusVC.statusCharacteristic.UUID]) {
+//        characteristic = self.statusVC.statusCharacteristic;
+//        data = [self.statusVC.statusTextField.text dataUsingEncoding:NSUTF8StringEncoding];
+//    }
+//    else {
+//        // Left blank
+//    }
+//    
+//    [peripheral updateValue:data forCharacteristic:characteristic onSubscribedCentrals:nil];
+//    request.value = characteristic.value;
+//    [peripheral respondToRequest:request withResult:CBATTErrorSuccess];
+//}
 
 #pragma mark - Helper methods
 - (NSString *)stringForCentralManagerState: (CBCentralManagerState)state

@@ -14,6 +14,8 @@
 @property (nonatomic, strong) NSArray *connectedDevices; // This is an array because the list of devices to choose from will be a set so there will be no duplicates
 
 @property (nonatomic, strong) CBUUID *statusServiceUUID;
+@property (nonatomic, strong) CBMutableCharacteristic *nameCharacteristic;
+@property (nonatomic, strong) CBMutableCharacteristic *statusCharacteristic;
 
 @property (nonatomic) BOOL isReadyToAdvertise;
 @property (nonatomic) BOOL isReadyToScan;
