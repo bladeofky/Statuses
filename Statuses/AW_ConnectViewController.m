@@ -68,10 +68,24 @@
     [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"UITableViewCell"];
     
     // Instantiate Central Manager and start scanning for peripherals
-    self.centralManager = [[CBCentralManager alloc]initWithDelegate:self queue:nil options:nil]; //Scanning will automatically begin when the correct state is reached
+    if (!self.centralManager) {
+        self.centralManager = [[CBCentralManager alloc]initWithDelegate:self queue:nil options:nil]; //Scanning will automatically begin when the correct state is reached
+    }
+    else {
+        // If central manager was passed from Status VC, begin scanning
+        [self.centralManager scanForPeripheralsWithServices:@[self.statusServiceUUID] options:@{CBCentralManagerOptionShowPowerAlertKey : @YES}];
+        NSLog(@"Central Manager started scanning");
+    }
     
     // Instantiate Peripheral Manager
-    self.peripheralManager = [[CBPeripheralManager alloc]initWithDelegate:self queue:nil options:nil];
+    if (!self.peripheralManager) {
+        self.peripheralManager = [[CBPeripheralManager alloc]initWithDelegate:self queue:nil options:nil];
+    }
+    else {
+        // Start advertising
+        [self.peripheralManager startAdvertising:@{CBAdvertisementDataServiceUUIDsKey:@[self.statusServiceUUID]}];
+    }
+    
     
 }
 
@@ -105,6 +119,7 @@
     // Copy connected peripherals back to Status view controller
     self.statusVC.connectedDevices = [self.connectedPeripherals copy];
     self.statusVC.peripheralManager = self.peripheralManager;
+    self.statusVC.centralManager = self.centralManager;
     
     // Pass references
     self.statusVC.statusServiceUUID = self.statusServiceUUID;
@@ -182,7 +197,7 @@
     peripheral.delegate = self.statusVC;
     [self.connectedPeripherals addObject:peripheral];
     
-#warning TODO: Why does this get called continuously?
+#warning TODO: Why does this get called repeatedly?
     // Discover peripheral's services and characteristics
     [peripheral discoverServices:@[self.statusServiceUUID]];
 
@@ -192,7 +207,6 @@
 
 -(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
-#warning TODO: Why do I disconnect after a few seconds?
     NSLog(@"Disconnected from peripheral: %@", peripheral.name);
     [self.tableView reloadData];
 }
@@ -212,11 +226,11 @@
         CBUUID *statusCharacteristicUUID = [CBUUID UUIDWithString:statusCharacteristicUUIDString];
         
         self.nameCharacteristic = [[CBMutableCharacteristic alloc]initWithType:nameCharacteristicUUID
-                                                                                        properties:CBCharacteristicPropertyRead
+                                                                                        properties:CBCharacteristicPropertyNotify
                                                                                              value:nil
                                                                                        permissions:CBAttributePermissionsReadable];
         self.statusCharacteristic = [[CBMutableCharacteristic alloc]initWithType:statusCharacteristicUUID
-                                                                                          properties:CBCharacteristicPropertyRead
+                                                                                          properties:CBCharacteristicPropertyNotify
                                                                                                value:nil
                                                                                          permissions:CBAttributePermissionsReadable];
         
@@ -235,7 +249,7 @@
         NSLog(@"Error publishing service: %@", [error localizedDescription]);
     }
     else {
-        NSLog(@"Successfully published service with UUID: %@", service.UUID.UUIDString);
+        NSLog(@"Successfully published service: %@", service);
     }
 }
 

@@ -48,11 +48,6 @@
     }
 }
 
-- (void)didReceiveMemoryWarning
-{
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
-}
 
 #pragma mark - Navigation Bar
 - (void)didPressAddButton
@@ -64,7 +59,7 @@
     connectViewController.statusVC = self;
     UINavigationController *dummyNavigationController = [[UINavigationController alloc]initWithRootViewController:connectViewController];
     
-    [self presentViewController:dummyNavigationController animated:YES completion:nil];
+    [self presentViewController:dummyNavigationController animated:NO completion:nil];
 }
 
 #pragma mark - UITableViewDataSource
@@ -85,9 +80,6 @@
     CBPeripheral *peripheral = self.connectedDevices[indexPath.row];
     
     if (peripheral) {
-#warning TODO: Program is crashing because cell tries to access characteristics before they are discovere. Need to figure out best place to discovere services for peripheral.
-
-        
         CBService *service = peripheral.services[0];
         
         CBCharacteristic *userNameCharacteristic = service.characteristics[0];
