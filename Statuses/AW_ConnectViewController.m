@@ -11,12 +11,6 @@
 
 @interface AW_ConnectViewController ()
 
-@property (nonatomic, strong) CBCentralManager *centralManager;
-@property (nonatomic, strong) CBPeripheralManager *peripheralManager;
-@property (nonatomic, strong) CBUUID *statusServiceUUID;
-@property (nonatomic, strong) CBMutableCharacteristic *nameCharacteristic;
-@property (nonatomic, strong) CBMutableCharacteristic *statusCharacteristic;
-
 @property (nonatomic, strong) NSMutableOrderedSet *discoveredPeripherals;
 
 @end
@@ -24,16 +18,6 @@
 @implementation AW_ConnectViewController
 
 #pragma mark - Accessors
--(CBUUID *)statusServiceUUID
-{
-    if (!_statusServiceUUID) {
-        NSString *serviceUUIDString = @"FDBC7F6F-1A7F-4259-92CE-CD63BE9920F1"; // Randomly generated using uuidgen in terminal
-        _statusServiceUUID = [CBUUID UUIDWithString:serviceUUIDString];
-    }
-    
-    return _statusServiceUUID;
-}
-
 -(NSMutableOrderedSet *)discoveredPeripherals
 {
     if (!_discoveredPeripherals) {
@@ -67,32 +51,17 @@
     // Set up table view
     [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"UITableViewCell"];
     
-    // Instantiate Central Manager and start scanning for peripherals
-    if (!self.centralManager) {
-        self.centralManager = [[CBCentralManager alloc]initWithDelegate:self queue:nil options:nil]; //Scanning will automatically begin when the correct state is reached
-    }
-    else {
-        // If central manager was passed from Status VC, begin scanning
-        [self.centralManager scanForPeripheralsWithServices:@[self.statusServiceUUID] options:@{CBCentralManagerOptionShowPowerAlertKey : @YES}];
+    // Begin scanning and advertising
+    #warning TODO: It would be better to use KVO for isReadyToScan and isReadyToAdvertise
+    if (self.statusVC.isReadyToScan) {
+        [self.centralManager scanForPeripheralsWithServices:@[self.statusVC.statusServiceUUID] options:@{CBCentralManagerOptionShowPowerAlertKey : @YES}];
         NSLog(@"Central Manager started scanning");
     }
     
-    // Instantiate Peripheral Manager
-    if (!self.peripheralManager) {
-        self.peripheralManager = [[CBPeripheralManager alloc]initWithDelegate:self queue:nil options:nil];
-    }
-    else {
-        // Start advertising
-        [self.peripheralManager startAdvertising:@{CBAdvertisementDataServiceUUIDsKey:@[self.statusServiceUUID]}];
+    if (self.statusVC.isReadyToAdvertise) {
+        [self.peripheralManager startAdvertising:@{CBAdvertisementDataServiceUUIDsKey:@[self.statusVC.statusServiceUUID]}];
     }
     
-    
-}
-
-- (void)didReceiveMemoryWarning {
-    
-    [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
 }
 
 #pragma mark - Navigation
@@ -103,6 +72,10 @@
     
     NSLog(@"Central manager stopped scanning");
     NSLog(@"Peripheral manager stopped advertising");
+    
+    // Change delegates
+    self.centralManager.delegate = self.statusVC;
+    self.peripheralManager.delegate = self.statusVC;
     
     [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
 }
@@ -116,15 +89,12 @@
     NSLog(@"Central manager stopped scanning");
     NSLog(@"Peripheral manager stopped advertising");
     
+    // Change delegates
+    self.centralManager.delegate = self.statusVC;
+    self.peripheralManager.delegate = self.statusVC;
+    
     // Copy connected peripherals back to Status view controller
     self.statusVC.connectedDevices = [self.connectedPeripherals copy];
-    self.statusVC.peripheralManager = self.peripheralManager;
-    self.statusVC.centralManager = self.centralManager;
-    
-    // Pass references
-    self.statusVC.statusServiceUUID = self.statusServiceUUID;
-    self.statusVC.nameCharacteristic = self.nameCharacteristic;
-    self.statusVC.statusCharacteristic = self.statusCharacteristic;
     
     // Dismiss this view controller
     [self.presentingViewController dismissViewControllerAnimated:YES completion:nil];
@@ -168,18 +138,6 @@
 }
 
 #pragma mark - CBCentralManagerDelegate
--(void)centralManagerDidUpdateState:(CBCentralManager *)central
-{
-    // Log state
-    NSLog(@"Central Manager state update to: %@", [self stringForCentralManagerState:central.state]);
-    
-    // If ready, begin scanning for peripherals
-    if (central.state == CBCentralManagerStatePoweredOn) {
-        [self.centralManager scanForPeripheralsWithServices:@[self.statusServiceUUID] options:@{CBCentralManagerOptionShowPowerAlertKey : @YES}];
-        NSLog(@"Central Manager started scanning");
-    }
-}
-
 -(void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber *)RSSI
 {
     NSLog(@"Discovered peripheral: %@", peripheral.name);
@@ -197,9 +155,9 @@
     peripheral.delegate = self.statusVC;
     [self.connectedPeripherals addObject:peripheral];
     
-#warning TODO: Why does this get called repeatedly?
+    #warning TODO: Why does this get called repeatedly?
     // Discover peripheral's services and characteristics
-    [peripheral discoverServices:@[self.statusServiceUUID]];
+    [peripheral discoverServices:@[self.statusVC.statusServiceUUID]];
 
     // Update table view (for checkmark accessory)
     [self.tableView reloadData];
@@ -212,46 +170,6 @@
 }
 
 #pragma mark - CBPeripheralManagerDelegate
--(void)peripheralManagerDidUpdateState:(CBPeripheralManager *)peripheral
-{
-    // Log state
-    NSLog(@"Peripheral Manager state update to: %@", [self stringForPeripheralManagerState:peripheral.state]);
-    
-    if (peripheral.state == CBPeripheralManagerStatePoweredOn) {
-        // Create characteristics and add service for sending and receiving name/status
-        NSString *nameCharacteristicUUIDString = @"5ED26EFA-1392-43D1-A57C-4FA763C9DA12";
-        NSString *statusCharacteristicUUIDString = @"14884F8C-10ED-45CA-BD5C-35BDC08ACEB0";
-        
-        CBUUID *nameCharacteristicUUID = [CBUUID UUIDWithString:nameCharacteristicUUIDString];
-        CBUUID *statusCharacteristicUUID = [CBUUID UUIDWithString:statusCharacteristicUUIDString];
-        
-        self.nameCharacteristic = [[CBMutableCharacteristic alloc]initWithType:nameCharacteristicUUID
-                                                                                        properties:CBCharacteristicPropertyNotify
-                                                                                             value:nil
-                                                                                       permissions:CBAttributePermissionsReadable];
-        self.statusCharacteristic = [[CBMutableCharacteristic alloc]initWithType:statusCharacteristicUUID
-                                                                                          properties:CBCharacteristicPropertyNotify
-                                                                                               value:nil
-                                                                                         permissions:CBAttributePermissionsReadable];
-        
-        CBMutableService *statusService = [[CBMutableService alloc]initWithType:self.statusServiceUUID primary:YES];
-        statusService.characteristics = @[self.nameCharacteristic, self.statusCharacteristic];
-        [self.peripheralManager addService:statusService];
-        
-        // Start advertising
-        [self.peripheralManager startAdvertising:@{CBAdvertisementDataServiceUUIDsKey:@[self.statusServiceUUID]}];
-    }
-}
-
--(void)peripheralManager:(CBPeripheralManager *)peripheral didAddService:(CBService *)service error:(NSError *)error
-{
-    if (error) {
-        NSLog(@"Error publishing service: %@", [error localizedDescription]);
-    }
-    else {
-        NSLog(@"Successfully published service: %@", service);
-    }
-}
 
 -(void)peripheralManagerDidStartAdvertising:(CBPeripheralManager *)peripheral error:(NSError *)error
 {
@@ -262,8 +180,6 @@
         NSLog(@"Began advertising services");
     }
 }
-
-
 
 #pragma mark - Helper methods
 - (NSString *)stringForCentralManagerState: (CBCentralManagerState)state
